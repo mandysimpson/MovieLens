@@ -60,9 +60,9 @@ movielens <- left_join(ratings, movies, by = "movieId")
 ```
 
 ##creating training and validation sets
-The movielens dataset is now split into training and validation subsets, with the validation set being approximately 10% of the total. The training set is named edx and the validation set is named validation. 
+The movielens dataset is now split into training and validation subsets, with the validation set being approximately 10% of the total. The training set is named `edx` and the validation set is named `validation`. 
 
-Following the initial split any rows which are included in the validation subset, but with users or movies which are not found in the training subset are moved out of validation and placed back into training. 
+Following the initial split any rows which are included in the `validation` subset, but with users or movies which are not also found in the `edx` subset are removed. These are then placed back into `edx`. 
 
 Finally all objects created by this download and cleaning process, but which are not required going forward, are removed.
 
@@ -90,7 +90,10 @@ edx <- rbind(edx, removed)
 rm(dl, ratings, movies, test_index, temp, movielens, removed)
 ```
 
-## Inspecting the training dataset
+## Inspecting the datasets
+
+Both the `edx` and `validation` datasets include the following columns:
+
 
 
 # Results
