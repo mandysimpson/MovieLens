@@ -94,6 +94,16 @@ rm(dl, ratings, movies, test_index, temp, movielens, removed)
 
 Both the `edx` and `validation` datasets include the following columns:
 
+userId
+movieId
+rating
+timestamp
+title
+genres
+
+The `edx` dataset has `r dim(edx)[1]` rows, each representing a single rating by one user of one movie.
+
+Within the `edx` dataset there are `r n_distinct(edx$userId)` individual users and `r n_distinct(edx$movieId)` individual movies represented. This gives a potential total of `r n_distinct(edx$userId) * n_distinct(edx$movieId)` possible ratings. However, as seen above, only `r dim(edx)[1]` ratings are included, just `r dim(edx)[1] / n_distinct(edx$userId) * n_distinct(edx$movieId)`% of the possible total. 
 
 
 # Results
