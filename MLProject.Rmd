@@ -1,7 +1,7 @@
 ---
-title: "MLProject"
 author: "Mandy Simpson"
 date: "10/10/2019"
+title: "MLProject"
 output: html_document
 ---
 
@@ -9,22 +9,94 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+# Introduction
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+Netflix is a streaming service, enabling millions of users worldwide to access a large catalogue of movies on demand. Users are able to rate movies that they have watched using a star system of one star (low) to five stars (high), and are presented with personalised recommendations for new movies to watch.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+This project, as part of the [HarvardX Professional Certificate in Data Science](https://www.edx.org/professional-certificate/harvardx-data-science) Capstone course, looks at how those recommendations are made, and in particular whether machine learning techniques can be used to improve predictions of the rating that a individual user will give to a particular movie. This is important to Netflix as it helps to generate the personalised recommendations presented to users (footnote - Netflix Tech blog https://medium.com/netflix-techblog/netflix-recommendations-beyond-the-5-stars-part-1-55838468f429).
 
-```{r cars}
-summary(cars)
+For this project a dataset of 10 million ratings (the [MovieLens 10M Dataset](https://grouplens.org/datasets/movielens/10m/)) is used to enable the necessary calcuations to be run on an average home computer. The dataset is split into training and validation subsets. The training subset is used to create a range of machine learning algorithms which are then tested on the validation subset. 
+
+Success is measured by considering the difference between the ratings predicted by each algorithm, and the actual ratings contained in validation subset. Root Mean Squared Error (RMSE) is used as a single measure of this difference. RMSE takes the square of the error for each prediction, creates an average of these, and then takes the square root of that average. A lower RMSE indicates a more accurate model.
+
+image: ![](https://www.includehelp.com/ml-ai/Images/rmse-1.jpg)
+
+
+# Methods and Analysis
+
+## Installing required packages and downloading the data
+
+The code below for installing the required R packages and downloading the MovieLens 10M dataset was provided as part of the course materials.
+
+```{r install_and_download}
+if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
+if(!require(data.table)) install.packages("data.table", repos = "http://cran.us.r-project.org")
+
+# MovieLens 10M dataset:
+# https://grouplens.org/datasets/movielens/10m/
+# http://files.grouplens.org/datasets/movielens/ml-10m.zip
+
+dl <- tempfile()
+download.file("http://files.grouplens.org/datasets/movielens/ml-10m.zip", dl)
 ```
 
-## Including Plots
+##Data cleaning
+The download contains three files, movies.dat, ratings.dat and tags.dat. Only the first two have been used for this project.
 
-You can also embed plots, for example:
+The following code was also provided as part of the course materials. This extracts the movies and ratings data, provides appropriate column headings for each, assigns numeric or character classes as needed, and joins the two tables into a single dataframe called `movielens`.
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r initial_data_extraction}
+ratings <- fread(text = gsub("::", "\t", readLines(unzip(dl, "ml-10M100K/ratings.dat"))),
+                 col.names = c("userId", "movieId", "rating", "timestamp"))
+
+movies <- str_split_fixed(readLines(unzip(dl, "ml-10M100K/movies.dat")), "\\::", 3)
+colnames(movies) <- c("movieId", "title", "genres")
+movies <- as.data.frame(movies) %>% mutate(movieId = as.numeric(levels(movieId))[movieId],
+                                           title = as.character(title),
+                                           genres = as.character(genres))
+
+movielens <- left_join(ratings, movies, by = "movieId")
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+##creating training and validation sets
+The movielens dataset is now split into training and validation subsets, with the validation set being approximately 10% of the total. The training set is named edx and the validation set is named validation. 
+
+Following the initial split any rows which are included in the validation subset, but with users or movies which are not found in the training subset are moved out of validation and placed back into training. 
+
+Finally all objects created by this download and cleaning process, but which are not required going forward, are removed.
+
+This code was provided as part of the course materials.
+
+```{r create_training_validation_subsets}
+# Validation set will be 10% of MovieLens data
+
+set.seed(1, sample.kind="Rounding")
+test_index <- createDataPartition(y = movielens$rating, times = 1, p = 0.1, list = FALSE)
+edx <- movielens[-test_index,]
+temp <- movielens[test_index,]
+
+# Make sure userId and movieId in validation set are also in edx set
+
+validation <- temp %>% 
+     semi_join(edx, by = "movieId") %>%
+     semi_join(edx, by = "userId")
+
+# Add rows removed from validation set back into edx set
+
+removed <- anti_join(temp, validation)
+edx <- rbind(edx, removed)
+
+rm(dl, ratings, movies, test_index, temp, movielens, removed)
+```
+
+## Inspecting the training dataset
+
+
+# Results
+
+A initial basis for measuring improvement was created by using a very basic algorithm in which every user and movie is given the same rating prediction - the average of all the ratings in the training set. This gave a RMSE of xxxx. An RMSE that is greater than 1, means that on average the prediction is more than one star different to the actual result.
+
+
+# Conclusion
+
