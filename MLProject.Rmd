@@ -13,14 +13,11 @@ knitr::opts_chunk$set(echo = TRUE)
 
 Netflix is a streaming service, enabling millions of users worldwide to access a large catalogue of movies on demand. Users are able to rate movies that they have watched using a star system of one star (low) to five stars (high), and are presented with personalised recommendations for new movies to watch.
 
-This project, as part of the [HarvardX Professional Certificate in Data Science](https://www.edx.org/professional-certificate/harvardx-data-science) Capstone course, looks at how those recommendations are made, and in particular whether machine learning techniques can be used to improve predictions of the rating that a individual user will give to a particular movie. This is important to Netflix as it helps to generate the personalised recommendations presented to users (footnote - Netflix Tech blog https://medium.com/netflix-techblog/netflix-recommendations-beyond-the-5-stars-part-1-55838468f429).
+This project, as part of the [HarvardX Professional Certificate in Data Science](https://www.edx.org/professional-certificate/harvardx-data-science) Capstone course, looks at how those recommendations are made, and in particular whether machine learning techniques can be used to improve predictions of the rating that a individual user will give to a particular movie.
 
 For this project a dataset of 10 million ratings (the [MovieLens 10M Dataset](https://grouplens.org/datasets/movielens/10m/)) is used to enable the necessary calcuations to be run on an average home computer. The dataset is split into training and validation subsets. The training subset is used to create a range of machine learning algorithms which are then tested on the validation subset. 
 
 Success is measured by considering the difference between the ratings predicted by each algorithm, and the actual ratings contained in validation subset. Root Mean Squared Error (RMSE) is used as a single measure of this difference. RMSE takes the square of the error for each prediction, creates an average of these, and then takes the square root of that average. A lower RMSE indicates a more accurate model.
-
-image: ![](https://www.includehelp.com/ml-ai/Images/rmse-1.jpg)
-
 
 # Methods and Analysis
 
@@ -28,7 +25,7 @@ image: ![](https://www.includehelp.com/ml-ai/Images/rmse-1.jpg)
 
 The code below for installing the required R packages and downloading the MovieLens 10M dataset was provided as part of the course materials.
 
-```{r install_and_download}
+```{r install_and_download, results = "hide"}
 if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
 if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
 if(!require(data.table)) install.packages("data.table", repos = "http://cran.us.r-project.org")
@@ -41,12 +38,13 @@ dl <- tempfile()
 download.file("http://files.grouplens.org/datasets/movielens/ml-10m.zip", dl)
 ```
 
-##Data cleaning
+## Data cleaning
+
 The download contains three files, movies.dat, ratings.dat and tags.dat. Only the first two have been used for this project.
 
 The following code was also provided as part of the course materials. This extracts the movies and ratings data, provides appropriate column headings for each, assigns numeric or character classes as needed, and joins the two tables into a single dataframe called `movielens`.
 
-```{r initial_data_extraction}
+```{r initial_data_extraction, results = "hide"}
 ratings <- fread(text = gsub("::", "\t", readLines(unzip(dl, "ml-10M100K/ratings.dat"))),
                  col.names = c("userId", "movieId", "rating", "timestamp"))
 
@@ -59,7 +57,8 @@ movies <- as.data.frame(movies) %>% mutate(movieId = as.numeric(levels(movieId))
 movielens <- left_join(ratings, movies, by = "movieId")
 ```
 
-##creating training and validation sets
+## Creating training and validation sets
+
 The movielens dataset is now split into training and validation subsets, with the validation set being approximately 10% of the total. The training set is named `edx` and the validation set is named `validation`. 
 
 Following the initial split any rows which are included in the `validation` subset, but with users or movies which are not also found in the `edx` subset are removed. These are then placed back into `edx`. 
@@ -68,7 +67,7 @@ Finally all objects created by this download and cleaning process, but which are
 
 This code was provided as part of the course materials.
 
-```{r create_training_validation_subsets}
+```{r create_training_validation_subsets, results = "hide"}
 # Validation set will be 10% of MovieLens data
 
 set.seed(1, sample.kind="Rounding")
@@ -103,7 +102,7 @@ genres
 
 The `edx` dataset has `r dim(edx)[1]` rows, each representing a single rating by one user of one movie.
 
-Within the `edx` dataset there are `r n_distinct(edx$userId)` individual users and `r n_distinct(edx$movieId)` individual movies represented. This gives a potential total of `r n_distinct(edx$userId) * n_distinct(edx$movieId)` possible ratings. However, as seen above, only `r dim(edx)[1]` ratings are included, just `r dim(edx)[1] / n_distinct(edx$userId) * n_distinct(edx$movieId)`% of the possible total. 
+Within the `edx` dataset there are `r n_distinct(edx$userId)` individual users and `r n_distinct(edx$movieId)` individual movies represented. This gives a potential total of `r n_distinct(edx$userId) * n_distinct(edx$movieId)` possible ratings. However, as seen above, only `r dim(edx)[1]` ratings are included, just `r (dim(edx)[1] * 100) / (n_distinct(edx$userId) * n_distinct(edx$movieId))`% of the possible total. 
 
 
 # Results
