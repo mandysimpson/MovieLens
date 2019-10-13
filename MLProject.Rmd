@@ -15,7 +15,9 @@ Netflix is a streaming service, enabling millions of users worldwide to access a
 
 This project, building a "recommendation system" is part of the [HarvardX Professional Certificate in Data Science](https://www.edx.org/professional-certificate/harvardx-data-science) Capstone course. It looks at how those recommendations are made, and in particular whether machine learning techniques can be used to improve predictions of the rating that a individual user will give to a particular movie.
 
-For this project a dataset of 10 million ratings (the [MovieLens 10M Dataset](https://grouplens.org/datasets/movielens/10m/)) is used to enable the necessary calcuations to be run on an average home computer. The dataset is split into training and validation subsets. The training subset is used to create a range of machine learning algorithms which are then tested on the validation subset. 
+For this project a dataset of 10 million ratings (the [MovieLens 10M Dataset](https://grouplens.org/datasets/movielens/10m/)) is used to enable the necessary calcuations to be run on an average home computer. This is still a large dataset and some delays may occur when running the code.
+
+The dataset is split into training and validation subsets. The training subset is used to create a range of machine learning algorithms which are then tested on the validation subset. 
 
 Success is measured by considering the difference between the ratings predicted by each algorithm, and the actual ratings contained in validation subset. Root Mean Squared Error (RMSE) is used as a single measure of this difference. RMSE takes the square of the error for each prediction, creates an average of these, and then takes the square root of that average. A lower RMSE indicates a more accurate model.
 
@@ -170,27 +172,27 @@ Applying the RMSE function
 ```{r RMSE_base_algorithm}
 base_rmse <- RMSE(validation$rating, average_rating)
 ```
-shows an RMSE of `base_rmse`.  An RMSE that is greater than 1, means that on average the prediction is more than one star different to the actual result.
+shows an RMSE of `r base_rmse`.  An RMSE that is greater than 1, means that on average the prediction is more than one star different to the actual result.
 
 ### Movie Effects
 
-Some movies are more popular than others. We allow for the impact of this by adding a term that allows for the difference between the movie's average rating and the overall average rating (which we calculated earlier). 
+Some movies are more popular than others. I allow for the impact of this by adding a term that allows for the difference between each movie's average rating and the overall average rating (which we calculated earlier). 
 
-```{r movie_effects_algorithm}
+```{r movie_averages, warning=FALSE, message=FALSE}
 movie_avgs <- edx %>% 
   group_by(movieId) %>% 
   summarize(b_i = mean(rating - average_rating))
 ```
 
-The differences are large (given these are how far each average is from the overall average of `r round(average_rating,2)`).
+The differences are large (given these are how far each average is from the overall average of `r round(average_rating,2)`) as shown in this histogram.
 
-```{r plot_distribution_movie_effects}
+```{r plot_distribution_movie_averages, echo=FALSE}
 movie_avgs %>% qplot(b_i, geom ="histogram", bins = 10, data = ., color = I("black"))
 ```
 
 The predicted ratings are calculated on the `validation` dataset using this improved algorithm, and compared to the actual ratings to get a new RMSE.
 
-```{r calculate_movie_predictions_rmse}
+```{r calculate_movie_predictions_rmse, warning=FALSE, message=FALSE}
 movie_effects <- average_rating + validation %>% 
      left_join(movie_avgs, by='movieId') %>%
      .$b_i
@@ -199,10 +201,55 @@ movie_effects_rmse <- RMSE(movie_effects, validation$rating)
 
 The RMSE of the algorithm with movie effects incorporated falls to `r movie_effects_rmse`
 
+### User Effects
+
+Some users give harsher ratings than others.  This is shown in the distribution below of user average ratings (only for those with over 100 ratings).
+
+```{r plot_user_effects_averages, echo="FALSE", warning=FALSE, message=FALSE}
+edx %>% 
+  group_by(userId) %>% 
+  summarize(b_u = mean(rating)) %>% 
+  filter(n()>=100) %>%
+  ggplot(aes(b_u)) + 
+  geom_histogram(bins = 30, color = "black")
+```
+
+In addition to the movie effects incorporated above I allow for this by adding a user effect term to the algorithm. 
+
+```{r calculate_user_and_movie_rmse, warning=FALSE, message=FALSE}
+user_avgs <- edx %>% 
+  left_join(movie_avgs, by='movieId') %>%
+  group_by(userId) %>%
+  summarize(b_u = mean(rating - average_rating - b_i))
+
+user_movie_effects <- validation %>% 
+     left_join(movie_avgs, by='movieId') %>%
+     left_join(user_avgs, by='userId') %>%
+     mutate(pred = average_rating + b_i + b_u) %>%
+     .$pred
+
+user_movie_effects_rmse <- RMSE(user_movie_effects, validation$rating)
+```
+
+With this additional user effects term incorporated the RMSE has now fallen to `r user_movie_effects_rmse`.
+
+
 
 # Results
 
-A initial basis for measuring improvement was created by using a very basic algorithm in which every user and movie is given the same rating prediction - the average of all the ratings in the training set. This gave a RMSE of xxxx. An RMSE that is greater than 1, means that on average the prediction is more than one star different to the actual result.
+The RMSEs of each attemtped algorithm can be summarized as follows:
+
+Algorithm              | RMSE      |
+-----------------------|-----------|
+Base                   |`r base_rmse` |
+Movie Effects          |`r movie_effects_rmse`|
+User and Movie Effects |`r user_movie_effects_rmse`|
+Regularized            |
+
+
+
+
+
 
 
 # Conclusion
