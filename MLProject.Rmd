@@ -123,7 +123,7 @@ abline(h=0:100+0.5, v=0:100+0.5, col = "grey")
 
 To understand the data better I reviewed the distributions of the number of ratings by user and by movie. 
 
-```{r ratings_by_user, echo = FALSE, warning = FALSE}
+```{r ratings_by_user, warning = FALSE}
 edx %>%
      dplyr::count(userId) %>% 
      ggplot(aes(n)) + 
@@ -132,7 +132,7 @@ edx %>%
      ggtitle("Users")
 ```
 
-```{r ratings_by_movie, echo = FALSE, warning = FALSE}
+```{r ratings_by_movie, warning = FALSE}
 edx %>% 
      dplyr::count(movieId) %>% 
      ggplot(aes(n)) + 
@@ -142,6 +142,63 @@ edx %>%
 ```
 
 There is a wide distribution for each, with some users rating a lot more movies than others, and some movies being rated much more frequently than others. 
+
+## Analysis
+
+As RMSE is used for measuring success of the predictive algorithms, I start by defining a function to measure RMSE. This takes as inputs the predicted ratings when applying the algorthm in question to the `validation` dataset, and the actual ratings included in that dataset.  
+
+The function is defined as follows:
+
+```{r RMSE_function, results="hide", warning=FALSE, message=FALSE}
+RMSE <- function(true_ratings, predicted_ratings){
+     sqrt(mean((true_ratings - predicted_ratings)^2))
+}
+```
+
+### Average
+
+A initial basis for measuring improvement is created by using a very basic algorithm in which every user and movie is given the same rating prediction - the average of all the ratings in the training set.
+
+This is calculated as follows:
+```{r base_algorithm, results="hide", warning=FALSE, message=FALSE}
+average_rating <- mean(edx$rating)
+```
+
+The average turns out to be `r round(average_rating,2)` (rounded to 2d.p. for display only).
+
+Applying the RMSE function
+```{r RMSE_base_algorithm}
+base_rmse <- RMSE(validation$rating, average_rating)
+```
+shows an RMSE of `base_rmse`.  An RMSE that is greater than 1, means that on average the prediction is more than one star different to the actual result.
+
+### Movie Effects
+
+Some movies are more popular than others. We allow for the impact of this by adding a term that allows for the difference between the movie's average rating and the overall average rating (which we calculated earlier). 
+
+```{r movie_effects_algorithm}
+movie_avgs <- edx %>% 
+  group_by(movieId) %>% 
+  summarize(b_i = mean(rating - average_rating))
+```
+
+The differences are large (given these are how far each average is from the overall average of `r round(average_rating,2)`).
+
+```{r plot_distribution_movie_effects}
+movie_avgs %>% qplot(b_i, geom ="histogram", bins = 10, data = ., color = I("black"))
+```
+
+The predicted ratings are calculated on the `validation` dataset using this improved algorithm, and compared to the actual ratings to get a new RMSE.
+
+```{r calculate_movie_predictions_rmse}
+movie_effects <- average_rating + validation %>% 
+     left_join(movie_avgs, by='movieId') %>%
+     .$b_i
+movie_effects_rmse <- RMSE(movie_effects, validation$rating)
+```
+
+The RMSE of the algorithm with movie effects incorporated falls to `r movie_effects_rmse`
+
 
 # Results
 

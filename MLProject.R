@@ -71,3 +71,31 @@ edx %>%
   geom_histogram(bins = 30, color = "black") + 
   scale_x_log10() + 
   ggtitle("Movies")
+
+# Function to calculate RMSE
+
+RMSE <- function(true_ratings, predicted_ratings){
+  sqrt(mean((true_ratings - predicted_ratings)^2))
+}
+
+# Base algorithm
+average_rating <- mean(edx$rating)
+average_rating
+
+base_rmse <- RMSE(validation$rating, average_rating)
+base_rmse
+
+# Movie effects algorithm
+movie_avgs <- edx %>% 
+  group_by(movieId) %>% 
+  summarize(b_i = mean(rating - average_rating))
+
+movie_avgs %>% qplot(b_i, geom ="histogram", bins = 10, data = ., color = I("black"))
+
+movie_effects <- average_rating + validation %>% 
+  left_join(movie_avgs, by='movieId') %>%
+  .$b_i
+movie_effects_rmse <- RMSE(movie_effects, validation$rating)
+movie_effects_rmse
+
+
