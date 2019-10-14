@@ -184,7 +184,7 @@ movie_avgs <- edx %>%
   summarize(b_i = mean(rating - average_rating))
 ```
 
-The differences are large (given these are how far each average is from the overall average of `r round(average_rating,2)`) as shown in this histogram.
+The differences are quite large as shown in this histogram.
 
 ```{r plot_distribution_movie_averages, echo=FALSE}
 movie_avgs %>% qplot(b_i, geom ="histogram", bins = 10, data = ., color = I("black"))
@@ -214,7 +214,7 @@ edx %>%
   geom_histogram(bins = 30, color = "black")
 ```
 
-In addition to the movie effects incorporated above I allow for this by adding a user effect term to the algorithm. 
+In addition to the movie effects incorporated above, I allow for this by adding a user effect term to the algorithm. 
 
 ```{r calculate_user_and_movie_rmse, warning=FALSE, message=FALSE}
 user_avgs <- edx %>% 
@@ -239,7 +239,7 @@ To modify the impact of large user or movie effects (i.e. large differences from
 
 The amount by which the difference should be moved towards 0 depends on each individual dataset, and is estimated using a tuning parameter - lambda. So that I do not use the `validation` dataset to tune this parameter, I have randomly split the `edx` dataset into an 80% `train` and 20% `test` set then used these to select the lambda that minimises the RMSE on the `test` set. 
 
-```{r calculate_lambda, results="hide", warning=FALSE, message=FALSE}
+```{r calculate_lambda, results="hide", warning=FALSE, message=FALSE, fig.show="hide"}
 #Splitting the edx dataset into train and test
 
 set.seed(1, sample.kind = "Rounding")
@@ -306,7 +306,7 @@ and as you can see the value of `lambda` that gives the lowest RMSE is `r lambda
 
 This value of `lambda` is then used to create a regularised user and movie effects algorithm on the entire `edx` dataset and then tested on the `validation` dataset as follows:
 
-```{r}
+```{r regularisation_model_rmse, results="hide", warning=FALSE, message=FALSE}
 # Use chosen lambda to create regularised user and movie effects model
 
 b_i <- edx %>% 
@@ -328,10 +328,9 @@ regularised <-
   .$pred
 
 regularised_rmse <- RMSE(regularised, validation$rating)
-regularised_rmse
 ```
 
-With the regularisation term added the RMSE has now fallen to `r regularisation_rmse`.
+With the regularisation term added the RMSE has now fallen to `r regularised_rmse`.
 
 
 # Results
@@ -343,12 +342,12 @@ Algorithm              | RMSE                      |
 Base                   |`r base_rmse`              |
 Movie Effects          |`r movie_effects_rmse`     |
 User and Movie Effects |`r user_movie_effects_rmse`|
-Regularized            |`r regularisation_rmse`    |
+Regularized            |`r regularised_rmse`    |
 
 
 # Conclusion
 
-By considering the likely effects on a rating of each movie and user, it is possible to achieve a significantly greater accuracy than simply taking the average of all ratings in the database. This is further improved by regularisation - reducing the impact of users or movies with a small number of ratings. The Root Mean Squared Error (RMSE) improves from `r base_rmse` for the overall average to `r regularisation_rmse` for the regularised user and movie effects model. 
+By considering the likely effects on a rating of each movie and user, it is possible to achieve a significantly greater accuracy than simply taking the average of all ratings in the database. This is further improved by regularisation - reducing the impact of users or movies with a small number of ratings. The Root Mean Squared Error (RMSE) improves from `r base_rmse` for the overall average to `r regularised_rmse` for the regularised user and movie effects model. 
 
 A number of additional pieces of work could improve the model further. 
 

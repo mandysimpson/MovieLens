@@ -189,7 +189,7 @@ qplot(lambdas, train_rmses)
 
 lambda <- lambdas[which.min(train_rmses)]
 
-# Use chosen lambda in final model
+# Use chosen lambda to create regularised user and movie effects model
 
 b_i <- edx %>% 
   group_by(movieId) %>%
