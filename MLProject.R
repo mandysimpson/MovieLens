@@ -122,7 +122,7 @@ user_avgs <- edx %>%
   group_by(userId) %>%
   summarize(b_u = mean(rating - average_rating - b_i))
 
-#use validation to make predictions and caluclate RMSE
+#use validation to make predictions and calculate RMSE
 
 user_movie_effects <- validation %>% 
   left_join(movie_avgs, by='movieId') %>%
@@ -134,3 +134,80 @@ user_movie_effects_rmse <- RMSE(user_movie_effects, validation$rating)
 user_movie_effects_rmse
 
 #Regularized algorithm
+#Splitting the edx dataset into train and test
+
+set.seed(1, sample.kind = "Rounding")
+# if using R 3.5 or earlier, use `set.seed(1)` instead
+
+test_index <- createDataPartition(y = edx$rating, times = 1, p = 0.2, list = FALSE)
+train <- edx[-test_index,]
+temp <- edx[test_index,]
+
+# Make sure userId and movieId in test set are also in train set
+
+test <- temp %>% 
+  semi_join(train, by = "movieId") %>%
+  semi_join(train, by = "userId")
+
+# Add rows removed from test set back into train set
+
+removed <- anti_join(temp, test)
+train <- rbind(train, removed)
+
+# Tidy up
+
+rm(test_index, temp, removed)
+
+#Choose lambda
+
+lambdas <- seq(2, 6, 0.5)
+
+train_rmses <- sapply(lambdas, function(l){
+  
+  mu <- mean(train$rating)
+  
+  b_i <- train %>% 
+    group_by(movieId) %>%
+    summarize(b_i = sum(rating - mu)/(n()+l))
+  
+  b_u <- train %>% 
+    left_join(b_i, by="movieId") %>%
+    group_by(userId) %>%
+    summarize(b_u = sum(rating - b_i - mu)/(n()+l))
+  
+  predicted_ratings <- 
+    test %>% 
+    left_join(b_i, by = "movieId") %>%
+    left_join(b_u, by = "userId") %>%
+    mutate(pred = mu + b_i + b_u) %>%
+    pull(pred)
+  
+  return(RMSE(predicted_ratings, test$rating))
+})
+
+qplot(lambdas, train_rmses)
+
+lambda <- lambdas[which.min(train_rmses)]
+
+# Use chosen lambda in final model
+
+b_i <- edx %>% 
+  group_by(movieId) %>%
+  summarize(b_i = sum(rating - average_rating)/(n()+lambda))
+
+b_u <- edx %>% 
+  left_join(b_i, by="movieId") %>%
+  group_by(userId) %>%
+  summarize(b_u = sum(rating - b_i - average_rating)/(n()+lambda))
+
+#use validation to make predictions and calculate RMSE
+
+regularised <- 
+  validation %>% 
+  left_join(b_i, by = "movieId") %>%
+  left_join(b_u, by = "userId") %>%
+  mutate(pred = average_rating + b_i + b_u) %>%
+  .$pred
+
+regularised_rmse <- RMSE(regularised, validation$rating)
+regularised_rmse

@@ -233,24 +233,127 @@ user_movie_effects_rmse <- RMSE(user_movie_effects, validation$rating)
 
 With this additional user effects term incorporated the RMSE has now fallen to `r user_movie_effects_rmse`.
 
+### Regularising the User and Movie Effects
+
+To modify the impact of large user or movie effects (i.e. large differences from the overall average) which are caused by small numbers of ratings I use regularisation. Regularisation applies a penalty to large differences caused by a small number of ratings, and uses this penalty to move the predicted difference back towards 0.
+
+The amount by which the difference should be moved towards 0 depends on each individual dataset, and is estimated using a tuning parameter - lambda. So that I do not use the `validation` dataset to tune this parameter, I have randomly split the `edx` dataset into an 80% `train` and 20% `test` set then used these to select the lambda that minimises the RMSE on the `test` set. 
+
+```{r calculate_lambda, results="hide", warning=FALSE, message=FALSE}
+#Splitting the edx dataset into train and test
+
+set.seed(1, sample.kind = "Rounding")
+# if using R 3.5 or earlier, use `set.seed(1)` instead
+
+test_index <- createDataPartition(y = edx$rating, times = 1, p = 0.2, list = FALSE)
+train <- edx[-test_index,]
+temp <- edx[test_index,]
+
+# Make sure userId and movieId in test set are also in train set
+
+test <- temp %>% 
+  semi_join(train, by = "movieId") %>%
+  semi_join(train, by = "userId")
+
+# Add rows removed from test set back into train set
+
+removed <- anti_join(temp, test)
+train <- rbind(train, removed)
+
+# Tidy up
+
+rm(test_index, temp, removed)
+
+#Choose lambda
+
+lambdas <- seq(2, 6, 0.5)
+
+train_rmses <- sapply(lambdas, function(l){
+  
+  mu <- mean(train$rating)
+  
+  b_i <- train %>% 
+    group_by(movieId) %>%
+    summarize(b_i = sum(rating - mu)/(n()+l))
+  
+  b_u <- train %>% 
+    left_join(b_i, by="movieId") %>%
+    group_by(userId) %>%
+    summarize(b_u = sum(rating - b_i - mu)/(n()+l))
+  
+  predicted_ratings <- 
+    test %>% 
+    left_join(b_i, by = "movieId") %>%
+    left_join(b_u, by = "userId") %>%
+    mutate(pred = mu + b_i + b_u) %>%
+    pull(pred)
+  
+  return(RMSE(predicted_ratings, test$rating))
+})
+
+qplot(lambdas, train_rmses)
+lambda <- lambdas[which.min(train_rmses)]
+
+```
+
+This code produces the following plot:
+
+```{r show_lambda_plot, echo=FALSE, warning=FALSE, message=FALSE}
+qplot(lambdas, train_rmses)
+```
+
+and as you can see the value of `lambda` that gives the lowest RMSE is `r lambda`.
+
+This value of `lambda` is then used to create a regularised user and movie effects algorithm on the entire `edx` dataset and then tested on the `validation` dataset as follows:
+
+```{r}
+# Use chosen lambda to create regularised user and movie effects model
+
+b_i <- edx %>% 
+  group_by(movieId) %>%
+  summarize(b_i = sum(rating - average_rating)/(n()+lambda))
+
+b_u <- edx %>% 
+  left_join(b_i, by="movieId") %>%
+  group_by(userId) %>%
+  summarize(b_u = sum(rating - b_i - average_rating)/(n()+lambda))
+
+#use validation to make predictions and calculate RMSE
+
+regularised <- 
+  validation %>% 
+  left_join(b_i, by = "movieId") %>%
+  left_join(b_u, by = "userId") %>%
+  mutate(pred = average_rating + b_i + b_u) %>%
+  .$pred
+
+regularised_rmse <- RMSE(regularised, validation$rating)
+regularised_rmse
+```
+
+With the regularisation term added the RMSE has now fallen to `r regularisation_rmse`.
 
 
 # Results
 
-The RMSEs of each attemtped algorithm can be summarized as follows:
+The RMSEs of each attempted algorithm can be summarized as follows:
 
-Algorithm              | RMSE      |
------------------------|-----------|
-Base                   |`r base_rmse` |
-Movie Effects          |`r movie_effects_rmse`|
+Algorithm              | RMSE                      |
+-----------------------|---------------------------|
+Base                   |`r base_rmse`              |
+Movie Effects          |`r movie_effects_rmse`     |
 User and Movie Effects |`r user_movie_effects_rmse`|
-Regularized            |
-
-
-
-
-
+Regularized            |`r regularisation_rmse`    |
 
 
 # Conclusion
+
+By considering the likely effects on a rating of each movie and user, it is possible to achieve a significantly greater accuracy than simply taking the average of all ratings in the database. This is further improved by regularisation - reducing the impact of users or movies with a small number of ratings. The Root Mean Squared Error (RMSE) improves from `r base_rmse` for the overall average to `r regularisation_rmse` for the regularised user and movie effects model. 
+
+A number of additional pieces of work could improve the model further. 
+
+The parameter chosen for the regularisation - `lambda` was tuned using just 20% of the `edx` dataset.  K-fold validation would likely improve the tuning of this parameter and may lead to a better result. 
+
+An exploration of the impact of genre, and year of release on ratings may also yield improvements to the algorithm. 
+
 
