@@ -2,7 +2,7 @@
 author: "Mandy Simpson"
 date: "10/10/2019"
 title: "MLProject"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
